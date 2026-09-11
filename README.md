@@ -429,6 +429,14 @@ N Lobby's session commonly expires after about 14 days. When a tool reports
 your normal browser, update `NLOBBY_SESSION_TOKEN` (and optional related cookies),
 then retry. Tokens and cookies are intentionally never returned by this service.
 
+For a connected, OAuth-protected MCP client, `update_nlobby_session` can replace
+the session token directly after the user explicitly supplies a newly obtained
+`__Secure-next-auth.session-token`. The value is AES-GCM encrypted with
+`COOKIE_ENCRYPTION_KEY` before being stored in the dedicated `NLOBBY_SESSIONS` KV
+namespace, is never returned by any tool, and takes precedence over the bootstrap
+Worker Secret. Because a token entered into a chat is visible to that chat service,
+prefer updating it with Wrangler when practical.
+
 The remote allowlist exposes read-only news, schedules, calendar data, courses,
 account information, navigation, and exam-day checks. The remote MCP deliberately excludes
 cookie tools, login tools, downloads, screenshots, one-time passwords, debugging,

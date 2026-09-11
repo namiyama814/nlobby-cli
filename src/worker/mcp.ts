@@ -2,6 +2,7 @@ import { McpServer } from "@modelcontextprotocol/server";
 import { z } from "zod";
 import { CalendarType } from "../types.js";
 import { RemoteNLobbyApi } from "./api.js";
+import { saveUpdatedSession } from "./session-store.js";
 import type { Env } from "./types.js";
 
 const result = (value: unknown) => ({ content: [{ type: "text" as const, text: JSON.stringify(value, null, 2) }] });
@@ -45,6 +46,16 @@ export function createNLobbyRemoteMcp(env: Env): McpServer {
   server.registerTool("get_user_interests", { description: "Get user interest tags from N Lobby.", inputSchema: z.object({ with_icon: z.boolean().default(false) }), annotations: readOnly }, async ({ with_icon }) => { try { return result(await api.getUserInterests(with_icon)); } catch (e) { return safeError(e); } });
   server.registerTool("get_interest_weights", { description: "Get N Lobby interest-weight scale definitions.", inputSchema: z.object({}), annotations: readOnly }, async () => { try { return result(await api.getInterestWeights()); } catch (e) { return safeError(e); } });
   server.registerTool("check_exam_day", { description: "Check whether a date is an N Lobby exam day.", inputSchema: z.object({ date: z.string().optional() }), annotations: readOnly }, async ({ date }) => { try { return result({ date: date ?? new Date().toISOString().slice(0, 10), isExamDay: await api.isExamDay(date ? new Date(date) : undefined) }); } catch (e) { return safeError(e); } });
+  server.registerTool("update_nlobby_session", {
+    description: "Replace the stored N Lobby session token after the user has logged in through their normal browser. This is an authentication update; never call it unless the user explicitly supplies a newly obtained session token.",
+    inputSchema: z.object({ session_token: z.string().min(20).describe("New __Secure-next-auth.session-token value from the user's N Lobby browser session") }),
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true },
+  }, async ({ session_token }) => {
+    try {
+      await saveUpdatedSession(env, session_token);
+      return { content: [{ type: "text" as const, text: "N Lobby session updated securely. The new session will be used on the next request." }] };
+    } catch (e) { return safeError(e); }
+  });
   // Secure Portal pages remain stdio-only until their redirect/cookie flow can
   // be verified without importing Puppeteer into the Worker bundle.
   return server;

@@ -1,5 +1,6 @@
 export interface Env {
   OAUTH_KV: KVNamespace;
+  NLOBBY_SESSIONS: KVNamespace;
   NLOBBY_SESSION_TOKEN: string;
   NLOBBY_CSRF_TOKEN?: string;
   NLOBBY_CALLBACK_URL?: string;

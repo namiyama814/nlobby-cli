@@ -5,5 +5,8 @@
   "main": "src/worker/index.ts",
   "compatibility_date": "2026-09-11",
   "compatibility_flags": ["global_fetch_strictly_public"],
-  "kv_namespaces": [{ "binding": "OAUTH_KV", "id": "81ebfe36c1c14266a79de706774588ef" }]
+  "kv_namespaces": [
+    { "binding": "OAUTH_KV", "id": "81ebfe36c1c14266a79de706774588ef" },
+    { "binding": "NLOBBY_SESSIONS", "id": "efaa8a2ad2d84397bc07d2c180cb5c08" }
+  ]
 }

@@ -7,6 +7,7 @@ import { getSchedule, getScheduleByDate, getLobbyCalendarFilters } from "../api/
 import { HttpClient, HttpClientError } from "../http-client.js";
 import { TRPCClient } from "../trpc-client.js";
 import { CalendarType } from "../types.js";
+import { readUpdatedSession } from "./session-store.js";
 import type { Env } from "./types.js";
 
 const EXPIRED_MESSAGE = "N Lobby session has expired. Please update the Cloudflare secret.";
@@ -32,9 +33,13 @@ export class RemoteNLobbyApi {
   readonly httpClient: HttpClient;
   readonly nextAuth: NextAuthHandler;
   readonly trpcClient: TRPCClient;
+  private readonly env: Env;
+  private activeCookies: string;
 
   constructor(env: Env) {
     const cookies = cookieHeaderFromSecrets(env);
+    this.env = env;
+    this.activeCookies = cookies;
     this.nextAuth = new NextAuthHandler();
     this.nextAuth.setCookies(cookies);
     this.httpClient = new HttpClient({
@@ -53,11 +58,23 @@ export class RemoteNLobbyApi {
 
   async call<T>(fn: () => Promise<T>): Promise<T> {
     try {
+      await this.applyUpdatedSession();
       return await fn();
     } catch (error) {
       if (isAuthenticationFailure(error)) throw new Error(EXPIRED_MESSAGE);
       throw error;
     }
+  }
+
+  private async applyUpdatedSession(): Promise<void> {
+    const updatedToken = await readUpdatedSession(this.env);
+    if (!updatedToken) return;
+    const cookies = cookieHeaderFromSecrets({ ...this.env, NLOBBY_COOKIE_HEADER: undefined, NLOBBY_SESSION_TOKEN: updatedToken });
+    if (cookies === this.activeCookies) return;
+    this.activeCookies = cookies;
+    this.httpClient.defaults.headers.Cookie = cookies;
+    this.nextAuth.setCookies(cookies);
+    this.trpcClient.setAllCookies(cookies);
   }
 
   getNews = (options?: Parameters<typeof getNews>[1]) => this.call(() => getNews(this, options));
