@@ -46,6 +46,34 @@ export function createNLobbyRemoteMcp(env: Env): McpServer {
   server.registerTool("get_user_interests", { description: "Get user interest tags from N Lobby.", inputSchema: z.object({ with_icon: z.boolean().default(false) }), annotations: readOnly }, async ({ with_icon }) => { try { return result(await api.getUserInterests(with_icon)); } catch (e) { return safeError(e); } });
   server.registerTool("get_interest_weights", { description: "Get N Lobby interest-weight scale definitions.", inputSchema: z.object({}), annotations: readOnly }, async () => { try { return result(await api.getInterestWeights()); } catch (e) { return safeError(e); } });
   server.registerTool("check_exam_day", { description: "Check whether a date is an N Lobby exam day.", inputSchema: z.object({ date: z.string().optional() }), annotations: readOnly }, async ({ date }) => { try { return result({ date: date ?? new Date().toISOString().slice(0, 10), isExamDay: await api.isExamDay(date ? new Date(date) : undefined) }); } catch (e) { return safeError(e); } });
+  server.registerTool("get_schooling", {
+    description: "Retrieve the authenticated student's Secure Portal schooling sessions and summary. This only reads data.",
+    inputSchema: z.object({}), annotations: readOnly,
+  }, async () => { try { return result(await api.getSchooling()); } catch (e) { return safeError(e); } });
+  server.registerTool("get_schooling_detail", {
+    description: "Retrieve the read-only detail for one Secure Portal schooling session.",
+    inputSchema: z.object({ entry_id: z.string().regex(/^\d+$/) }), annotations: readOnly,
+  }, async ({ entry_id }) => { try { return result(await api.getSchoolingDetail(entry_id)); } catch (e) { return safeError(e); } });
+  server.registerTool("get_designated_school", {
+    description: "Search the Secure Portal's designated-school information. This only reads data and does not submit an application.",
+    inputSchema: z.object({
+      prefectures: z.array(z.number().int()).optional(), school_types: z.array(z.number().int()).optional(),
+      school_name: z.string().optional(), school_name_exact: z.boolean().default(false),
+      faculty_name: z.string().optional(), faculty_name_exact: z.boolean().default(false),
+      freeword: z.string().optional(), freeword_exact: z.boolean().default(false),
+      selection_deadline_before: z.string().optional(), page: z.number().int().min(1).optional(),
+    }), annotations: readOnly,
+  }, async (input) => {
+    try {
+      return result(await api.getDesignatedSchool({
+        prefectures: input.prefectures, schoolTypes: input.school_types,
+        schoolName: input.school_name, schoolNameExact: input.school_name_exact,
+        facultyName: input.faculty_name, facultyNameExact: input.faculty_name_exact,
+        freeword: input.freeword, freewordExact: input.freeword_exact,
+        selectionDeadlineBefore: input.selection_deadline_before, page: input.page,
+      }));
+    } catch (e) { return safeError(e); }
+  });
   server.registerTool("update_nlobby_session", {
     description: "Replace the stored N Lobby session token after the user has logged in through their normal browser. This is an authentication update; never call it unless the user explicitly supplies a newly obtained session token.",
     inputSchema: z.object({ session_token: z.string().min(20).describe("New __Secure-next-auth.session-token value from the user's N Lobby browser session") }),
@@ -56,7 +84,5 @@ export function createNLobbyRemoteMcp(env: Env): McpServer {
       return { content: [{ type: "text" as const, text: "N Lobby session updated securely. The new session will be used on the next request." }] };
     } catch (e) { return safeError(e); }
   });
-  // Secure Portal pages remain stdio-only until their redirect/cookie flow can
-  // be verified without importing Puppeteer into the Worker bundle.
   return server;
 }

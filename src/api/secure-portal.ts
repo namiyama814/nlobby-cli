@@ -1,8 +1,18 @@
-import type { Browser, CookieParam } from "puppeteer";
 import { CONFIG } from "../config.js";
-import { logger } from "../logger.js";
 import type { ApiContext } from "./context.js";
 import { getAccountInfoFromScript } from "./account.js";
+
+/** A transport-neutral cookie shape. Keeping this independent of Puppeteer is
+ * what lets the Secure Portal flow run in a Cloudflare Worker. */
+export interface SecurePortalCookie {
+  name: string;
+  value: string;
+  domain: string;
+  path: string;
+  secure: boolean;
+  httpOnly: boolean;
+  sameSite: "Lax";
+}
 
 export function resolveSecureHostFromStudentNo(studentNo: string): string {
   const identifier = studentNo.charAt(2)?.toUpperCase();
@@ -33,11 +43,11 @@ export function buildSecurePortalCallbackUrl(
   return { targetUrl, callbackUrl };
 }
 
-export function buildPuppeteerCookies(
+export function buildSecurePortalCookies(
   cookieHeader: string,
   domain: string,
-): CookieParam[] {
-  const cookies: CookieParam[] = [];
+): SecurePortalCookie[] {
+  const cookies: SecurePortalCookie[] = [];
 
   for (const rawPart of cookieHeader.split(";")) {
     const part = rawPart.trim();
@@ -66,14 +76,6 @@ export function buildPuppeteerCookies(
   return cookies;
 }
 
-export async function launchHeadlessBrowser(): Promise<Browser> {
-  const { launchPuppeteerBrowser } = await import("../auth/puppeteer-launch.js");
-  return launchPuppeteerBrowser({
-    headless: true,
-    args: ["--no-sandbox", "--disable-setuid-sandbox"],
-  });
-}
-
 export async function resolveSecurePortalContext(
   ctx: ApiContext,
   portalPath: string,
@@ -82,7 +84,7 @@ export async function resolveSecurePortalContext(
   secureHost: string;
   callbackUrl: string;
   targetUrl: string;
-  cookies: CookieParam[];
+  cookies: SecurePortalCookie[];
 }> {
   const accountInfo = await getAccountInfoFromScript(ctx, "/");
   const studentNo = accountInfo.studentNo;
@@ -106,7 +108,7 @@ export async function resolveSecurePortalContext(
     );
   }
 
-  const cookies = buildPuppeteerCookies(cookieHeader, "nlobby.nnn.ed.jp");
+  const cookies = buildSecurePortalCookies(cookieHeader, "nlobby.nnn.ed.jp");
   if (cookies.length === 0) {
     throw new Error(
       "Failed to parse authentication cookies for browser session.",
@@ -118,55 +120,17 @@ export async function resolveSecurePortalContext(
 
 export async function fetchSecurePortalPage(options: {
   startUrl: string;
-  cookies: CookieParam[];
+  cookies: SecurePortalCookie[];
   waitForSelector?: string;
 }): Promise<{ html: string; mainHtml: string; finalUrl: string }> {
-  if (typeof process === "undefined") {
-    return fetchSecurePortalPageHttp(options);
-  }
-  const waitForSelector = options.waitForSelector ?? "#main";
-
-  logger.info("[SECURE_PORTAL] Launching headless browser for page fetch");
-
-  const browser = await launchHeadlessBrowser();
-
-  try {
-    const page = await browser.newPage();
-    await page.setViewport({ width: 1280, height: 720 });
-    await page.setUserAgent(CONFIG.userAgent);
-
-    if (options.cookies.length > 0) {
-      await page.setCookie(...options.cookies);
-    }
-
-    await page.goto(options.startUrl, {
-      waitUntil: "networkidle2",
-      timeout: 60000,
-    });
-
-    await page.waitForSelector(waitForSelector, { timeout: 60000 });
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-
-    const html = await page.content();
-    const mainHtml = await page.$eval(waitForSelector, (element) => {
-      return element.innerHTML;
-    });
-
-    return {
-      html,
-      mainHtml,
-      finalUrl: page.url(),
-    };
-  } finally {
-    await browser.close();
-  }
+  return fetchSecurePortalPageHttp(options);
 }
 
 /** Worker-safe secure portal fetch. It follows the existing callback flow and
  * carries Set-Cookie values across redirects without requiring a browser. */
 async function fetchSecurePortalPageHttp(options: {
   startUrl: string;
-  cookies: CookieParam[];
+  cookies: SecurePortalCookie[];
   waitForSelector?: string;
 }): Promise<{ html: string; mainHtml: string; finalUrl: string }> {
   const jar = new Map(options.cookies.map((cookie) => [cookie.name, cookie.value]));
@@ -198,77 +162,9 @@ async function fetchSecurePortalPageHttp(options: {
     if (/\b(login|sign-in|ログイン)\b/i.test(html) && !/id=["']main["']/i.test(html)) {
       throw new Error("Authentication expired. Please re-authenticate.");
     }
-    const match = html.match(/<[^>]+id=["']main["'][^>]*>([\s\S]*?)<\/[^>]+>/i);
-    return { html, mainHtml: match?.[1] ?? html, finalUrl: url };
+    // Parsers use Cheerio and locate #main themselves. Returning the complete
+    // document avoids truncating nested HTML with a regex.
+    return { html, mainHtml: html, finalUrl: url };
   }
   throw new Error("Secure Portal redirect limit exceeded.");
-}
-
-export async function captureSecurePortalElement(options: {
-  startUrl: string;
-  cookies: CookieParam[];
-  waitForSelector: string;
-  screenshotName: string;
-}): Promise<{
-  base64: string;
-  path: string;
-  finalUrl: string;
-  elementSize?: { width: number; height: number };
-}> {
-  const fs = await import("node:fs/promises");
-  const os = await import("node:os");
-  const path = await import("node:path");
-
-  const browser = await launchHeadlessBrowser();
-
-  try {
-    const page = await browser.newPage();
-    await page.setViewport({ width: 1280, height: 720 });
-    await page.setUserAgent(CONFIG.userAgent);
-
-    if (options.cookies.length > 0) {
-      await page.setCookie(...options.cookies);
-    }
-
-    await page.goto(options.startUrl, {
-      waitUntil: "networkidle2",
-      timeout: 60000,
-    });
-
-    await page.waitForSelector(options.waitForSelector, { timeout: 60000 });
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-
-    const elementHandle = await page.$(options.waitForSelector);
-    if (!elementHandle) {
-      throw new Error(
-        `Failed to locate element ${options.waitForSelector} for screenshot`,
-      );
-    }
-
-    const buffer = (await elementHandle.screenshot({
-      type: "png",
-    })) as Buffer;
-
-    const tmpDir = path.join(os.tmpdir(), "nlobby-student-card");
-    await fs.mkdir(tmpDir, { recursive: true });
-    const screenshotPath = path.join(tmpDir, options.screenshotName);
-    await fs.writeFile(screenshotPath, buffer);
-
-    const boundingBox = await elementHandle.boundingBox();
-    const elementSize = boundingBox
-      ? {
-          width: Math.round(boundingBox.width),
-          height: Math.round(boundingBox.height),
-        }
-      : undefined;
-
-    return {
-      base64: buffer.toString("base64"),
-      path: screenshotPath,
-      finalUrl: page.url(),
-      elementSize,
-    };
-  } finally {
-    await browser.close();
-  }
 }

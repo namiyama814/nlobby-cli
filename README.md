@@ -388,7 +388,6 @@ commands continue to use their local authentication flow.
 
    ```bash
    pnpm exec wrangler secret put NLOBBY_SESSION_TOKEN
-   pnpm exec wrangler secret put MCP_ACCESS_TOKEN # optional legacy client secret; not consumed by OAuth
    pnpm exec wrangler secret put NLOBBY_CSRF_TOKEN # optional
    pnpm exec wrangler secret put NLOBBY_CALLBACK_URL # optional
    pnpm exec wrangler secret put NLOBBY_COOKIE_HEADER # optional full-cookie override
@@ -426,8 +425,9 @@ on the account/workspace plan.
 
 N Lobby's session commonly expires after about 14 days. When a tool reports
 `N Lobby session has expired. Please update the Cloudflare secret.`, log in through
-your normal browser, update `NLOBBY_SESSION_TOKEN` (and optional related cookies),
-then retry. Tokens and cookies are intentionally never returned by this service.
+your normal browser, then update `NLOBBY_SESSION_TOKEN` (and optional related
+cookies) or use the session-update tool below. Tokens and cookies are intentionally
+never returned by this service.
 
 For a connected, OAuth-protected MCP client, `update_nlobby_session` can replace
 the session token directly after the user explicitly supplies a newly obtained
@@ -438,11 +438,11 @@ Worker Secret. Because a token entered into a chat is visible to that chat servi
 prefer updating it with Wrangler when practical.
 
 The remote allowlist exposes read-only news, schedules, calendar data, courses,
-account information, navigation, and exam-day checks. The remote MCP deliberately excludes
+account information, navigation, exam-day checks, Secure Portal schooling, and
+designated-school searches. Secure Portal uses an HTTP redirect-and-cookie flow in
+the Worker; it does not bundle Puppeteer. The remote MCP deliberately excludes
 cookie tools, login tools, downloads, screenshots, one-time passwords, debugging,
-and every state-changing operation. Secure Portal schooling and designated-school
-pages remain CLI/stdio-only until their redirect-and-cookie flow has been verified
-without Puppeteer; they are not bundled into the Worker.
+application submission, and every other state-changing operation.
 
 ---
 

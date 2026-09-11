@@ -4,6 +4,8 @@ import { getRequiredCourses, getLearningResources, isExamDay } from "../api/cour
 import { getNews, getNewsDetail, getUnreadNewsInfo } from "../api/news.js";
 import { getMainNavigations, getNotificationMessages, getUserInterests, getInterestWeights } from "../api/navigation.js";
 import { getSchedule, getScheduleByDate, getLobbyCalendarFilters } from "../api/schedule.js";
+import { getSchooling, getSchoolingDetail } from "../api/schooling.js";
+import { getDesignatedSchool } from "../api/designated-school.js";
 import { HttpClient, HttpClientError } from "../http-client.js";
 import { TRPCClient } from "../trpc-client.js";
 import { CalendarType } from "../types.js";
@@ -91,6 +93,10 @@ export class RemoteNLobbyApi {
   getUserInterests = (withIcon?: boolean) => this.call(() => getUserInterests(this, withIcon));
   getInterestWeights = () => this.call(() => getInterestWeights(this));
   isExamDay = (date?: Date) => this.call(() => isExamDay(this, date));
+  getSchooling = () => this.call(() => getSchooling(this));
+  getSchoolingDetail = (entryId: string) => this.call(() => getSchoolingDetail(this, entryId));
+  getDesignatedSchool = (options?: Parameters<typeof getDesignatedSchool>[1]) =>
+    this.call(() => getDesignatedSchool(this, options));
 }
 
 function isAuthenticationFailure(error: unknown): boolean {

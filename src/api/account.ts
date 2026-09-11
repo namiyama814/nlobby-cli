@@ -299,11 +299,11 @@ export async function getStudentCardScreenshot(ctx: ApiContext): Promise<{
 }> {
   // Keep browser-only code out of the Worker import graph.
   const {
-    buildPuppeteerCookies,
     buildSecurePortalCallbackUrl,
-    captureSecurePortalElement,
     resolveSecureHostFromStudentNo,
   } = await import("./secure-portal.js");
+  const { buildPuppeteerCookies, captureSecurePortalElement } =
+    await import("./secure-portal-browser.js");
   const accountInfo = await getAccountInfoFromScript(ctx, "/");
   const studentNo = accountInfo.studentNo;
 
