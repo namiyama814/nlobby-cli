@@ -1,6 +1,7 @@
 import OAuthProvider, { type OAuthHelpers } from "@cloudflare/workers-oauth-provider";
 import { createMcpHandler } from "agents/mcp/server";
 import { createNLobbyRemoteMcp } from "./mcp.js";
+import { cleanupExpiredScreenshots, serveDownload } from "./screenshots.js";
 import type { Env } from "./types.js";
 
 type OAuthEnv = Env & { OAUTH_PROVIDER: OAuthHelpers };
@@ -18,6 +19,7 @@ const authHandler: ExportedHandler<OAuthEnv> = {
   async fetch(request, env): Promise<Response> {
     const url = new URL(request.url);
     if (url.pathname === "/health") return Response.json({ status: "ok" });
+    if (url.pathname.startsWith("/download/")) return serveDownload(request, env);
     if (url.pathname === "/authorize") return beginGithubAuthorization(request, env);
     if (url.pathname === "/callback") return finishGithubAuthorization(request, env);
     return new Response("Not found", { status: 404 });
@@ -81,7 +83,7 @@ function readCookie(request: Request, name: string): string | undefined {
   return request.headers.get("Cookie")?.split(";").map((part) => part.trim()).find((part) => part.startsWith(`${name}=`))?.slice(name.length + 1);
 }
 
-export default new OAuthProvider<OAuthEnv>({
+const oauthProvider = new OAuthProvider<OAuthEnv>({
   apiRoute: "/mcp",
   apiHandler,
   authorizeEndpoint: "/authorize",
@@ -90,3 +92,10 @@ export default new OAuthProvider<OAuthEnv>({
   defaultHandler: authHandler,
   scopesSupported: ["nlobby.read"],
 });
+
+export default {
+  fetch: oauthProvider.fetch.bind(oauthProvider),
+  async scheduled(_controller, env, ctx) {
+    ctx.waitUntil(cleanupExpiredScreenshots(env));
+  },
+} satisfies ExportedHandler<OAuthEnv>;

@@ -35,6 +35,7 @@
     "url": "https://github.com/minagishl/nlobby-cli/issues"
   },
   "dependencies": {
+    "@cloudflare/puppeteer": "^1.4.0",
     "@cloudflare/workers-oauth-provider": "^0.10.3",
     "@modelcontextprotocol/sdk": "^1.30.0",
     "@modelcontextprotocol/server": "^2.0.0",

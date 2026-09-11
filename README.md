@@ -441,9 +441,15 @@ The remote allowlist exposes read-only news, schedules, calendar data, courses,
 account information, navigation, exam-day checks, Secure Portal schooling, and
 designated-school searches. Secure Portal uses an HTTP redirect-and-cookie flow in
 the Worker; it does not bundle Puppeteer. The remote MCP deliberately excludes
-cookie tools, login tools, downloads, screenshots, one-time passwords, debugging,
+cookie tools, login tools, general file downloads, one-time passwords, debugging,
 and application submission. The only state-changing Remote MCP tool is
 `mark_news_as_read`, which requires explicit announcement IDs supplied by the user.
+
+`download_student_card_screenshot` uses Cloudflare Browser Run to render the
+authenticated student-card page and returns a download URL. The PNG is stored only
+in the private `nlobby-mcp-downloads` R2 bucket; its opaque URL expires after 10
+minutes and a Worker cron removes expired images. Treat the URL as sensitive while
+it is valid, since anyone with it can download that one image.
 
 ---
 

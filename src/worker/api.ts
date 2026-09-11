@@ -10,6 +10,7 @@ import { HttpClient, HttpClientError } from "../http-client.js";
 import { TRPCClient } from "../trpc-client.js";
 import { CalendarType } from "../types.js";
 import { readUpdatedSession } from "./session-store.js";
+import { createStudentCardDownload } from "./screenshots.js";
 import type { Env } from "./types.js";
 
 const EXPIRED_MESSAGE = "N Lobby session has expired. Please update the Cloudflare secret.";
@@ -98,6 +99,7 @@ export class RemoteNLobbyApi {
   getSchoolingDetail = (entryId: string) => this.call(() => getSchoolingDetail(this, entryId));
   getDesignatedSchool = (options?: Parameters<typeof getDesignatedSchool>[1]) =>
     this.call(() => getDesignatedSchool(this, options));
+  createStudentCardDownload = () => this.call(() => createStudentCardDownload(this.env, this));
 }
 
 function isAuthenticationFailure(error: unknown): boolean {

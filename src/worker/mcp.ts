@@ -85,6 +85,11 @@ export function createNLobbyRemoteMcp(env: Env): McpServer {
       }));
     } catch (e) { return safeError(e); }
   });
+  server.registerTool("download_student_card_screenshot", {
+    description: "Create a PNG screenshot of the authenticated student's Secure Portal student-card page and return a private download URL. The URL is a bearer link that expires in 10 minutes; only create it when the user explicitly requests the screenshot.",
+    inputSchema: z.object({}),
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
+  }, async () => { try { return result(await api.createStudentCardDownload()); } catch (e) { return safeError(e); } });
   server.registerTool("update_nlobby_session", {
     description: "Replace the stored N Lobby session token after the user has logged in through their normal browser. This is an authentication update; never call it unless the user explicitly supplies a newly obtained session token.",
     inputSchema: z.object({ session_token: z.string().min(20).describe("New __Secure-next-auth.session-token value from the user's N Lobby browser session") }),

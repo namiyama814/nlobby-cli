@@ -4,9 +4,18 @@
   "account_id": "2a1ab8b6a9b36f7f0c4292dce044e0c4",
   "main": "src/worker/index.ts",
   "compatibility_date": "2026-09-11",
-  "compatibility_flags": ["global_fetch_strictly_public"],
+  "compatibility_flags": ["global_fetch_strictly_public", "nodejs_compat_v2"],
+  "browser": { "binding": "BROWSER" },
+  "r2_buckets": [
+    { "binding": "SCREENSHOTS", "bucket_name": "nlobby-mcp-downloads" }
+  ],
   "kv_namespaces": [
     { "binding": "OAUTH_KV", "id": "81ebfe36c1c14266a79de706774588ef" },
-    { "binding": "NLOBBY_SESSIONS", "id": "efaa8a2ad2d84397bc07d2c180cb5c08" }
-  ]
+    { "binding": "NLOBBY_SESSIONS", "id": "efaa8a2ad2d84397bc07d2c180cb5c08" },
+    { "binding": "NLOBBY_DOWNLOADS", "id": "9f870e6dbe3042d0a9e3cecc34a681c5" }
+  ],
+  "vars": {
+    "DOWNLOAD_BASE_URL": "https://nlobby-remote-mcp.namiyama814.workers.dev"
+  },
+  "triggers": { "crons": ["*/15 * * * *"] }
 }
