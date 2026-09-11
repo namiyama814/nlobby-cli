@@ -1,7 +1,7 @@
 import { NextAuthHandler } from "../auth/nextauth.js";
 import { getAccountInfoFromScript } from "../api/account.js";
 import { getRequiredCourses, getLearningResources, isExamDay } from "../api/courses.js";
-import { getNews, getNewsDetail, getUnreadNewsInfo } from "../api/news.js";
+import { getNews, getNewsDetail, getUnreadNewsInfo, markNewsAsRead } from "../api/news.js";
 import { getMainNavigations, getNotificationMessages, getUserInterests, getInterestWeights } from "../api/navigation.js";
 import { getSchedule, getScheduleByDate, getLobbyCalendarFilters } from "../api/schedule.js";
 import { getSchooling, getSchoolingDetail } from "../api/schooling.js";
@@ -81,6 +81,7 @@ export class RemoteNLobbyApi {
 
   getNews = (options?: Parameters<typeof getNews>[1]) => this.call(() => getNews(this, options));
   getNewsDetail = (id: string) => this.call(() => getNewsDetail(this, id));
+  markNewsAsRead = (id: string) => this.call(() => markNewsAsRead(this, id));
   getUnreadNewsInfo = () => this.call(() => getUnreadNewsInfo(this));
   getScheduleByDate = (date?: string) => this.call(() => getScheduleByDate(this, date));
   getSchedule = (type: CalendarType, range?: Parameters<typeof getSchedule>[2]) => this.call(() => getSchedule(this, type, range));

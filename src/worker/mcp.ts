@@ -27,6 +27,17 @@ export function createNLobbyRemoteMcp(env: Env): McpServer {
     description: "Retrieve the content and metadata of one N Lobby announcement. This never marks an announcement as read.",
     inputSchema: z.object({ newsId: z.string().min(1) }), annotations: readOnly,
   }, async ({ newsId }) => { try { return result(await api.getNewsDetail(newsId)); } catch (e) { return safeError(e); } });
+  server.registerTool("mark_news_as_read", {
+    description: "Mark explicitly specified N Lobby announcements as read. This changes only the read status of the supplied IDs; never call it unless the user explicitly asks to mark those announcements as read.",
+    inputSchema: z.object({ news_ids: z.array(z.string().min(1)).min(1).max(50).describe("Announcement IDs to mark as read") }),
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true },
+  }, async ({ news_ids }) => {
+    try {
+      const uniqueIds = [...new Set(news_ids)];
+      await Promise.all(uniqueIds.map((id) => api.markNewsAsRead(id)));
+      return result({ markedAsRead: uniqueIds });
+    } catch (e) { return safeError(e); }
+  });
   server.registerTool("get_unread_news_info", { description: "Get unread N Lobby announcement counts and important-news flags.", inputSchema: z.object({}), annotations: readOnly }, async () => { try { return result(await api.getUnreadNewsInfo()); } catch (e) { return safeError(e); } });
   server.registerTool("get_schedule", { description: "Get the N Lobby schedule for one date, or today when omitted.", inputSchema: z.object({ date: z.string().optional() }), annotations: readOnly }, async ({ date }) => { try { return result(await api.getScheduleByDate(date)); } catch (e) { return safeError(e); } });
   server.registerTool("get_calendar_events", { description: "Get personal or school calendar events for a date range.", inputSchema: z.object({ calendar_type: z.enum(["personal", "school"]).default("personal"), from_date: z.string().optional(), to_date: z.string().optional() }), annotations: readOnly }, async ({ calendar_type, from_date, to_date }) => {

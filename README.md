@@ -442,7 +442,8 @@ account information, navigation, exam-day checks, Secure Portal schooling, and
 designated-school searches. Secure Portal uses an HTTP redirect-and-cookie flow in
 the Worker; it does not bundle Puppeteer. The remote MCP deliberately excludes
 cookie tools, login tools, downloads, screenshots, one-time passwords, debugging,
-application submission, and every other state-changing operation.
+and application submission. The only state-changing Remote MCP tool is
+`mark_news_as_read`, which requires explicit announcement IDs supplied by the user.
 
 ---
 
