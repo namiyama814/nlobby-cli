@@ -2,12 +2,6 @@ import type { ApiContext } from "./context.js";
 import { fetchRenderedHtml } from "./shared.js";
 import { logger } from "../logger.js";
 import type { NLobbyAccountInfo, StandardApiResponse } from "../types.js";
-import {
-  buildPuppeteerCookies,
-  buildSecurePortalCallbackUrl,
-  captureSecurePortalElement,
-  resolveSecureHostFromStudentNo,
-} from "./secure-portal.js";
 
 type UnknownObject = Record<string, unknown>;
 
@@ -303,6 +297,13 @@ export async function getStudentCardScreenshot(ctx: ApiContext): Promise<{
   finalUrl: string;
   elementSize?: { width: number; height: number };
 }> {
+  // Keep browser-only code out of the Worker import graph.
+  const {
+    buildPuppeteerCookies,
+    buildSecurePortalCallbackUrl,
+    captureSecurePortalElement,
+    resolveSecureHostFromStudentNo,
+  } = await import("./secure-portal.js");
   const accountInfo = await getAccountInfoFromScript(ctx, "/");
   const studentNo = accountInfo.studentNo;
 

@@ -3,9 +3,6 @@ import { fetchRenderedHtml } from "./shared.js";
 import { CONFIG } from "../config.js";
 import { logger } from "../logger.js";
 import * as cheerio from "cheerio";
-import fs from "node:fs/promises";
-import path from "node:path";
-import fetch from "node-fetch";
 import type {
   NLobbyAnnouncement,
   NLobbyNewsDetail,
@@ -1492,6 +1489,10 @@ export async function downloadNewsAttachment(
   attachmentIndex: number = 0,
   outputDir: string = ".",
 ): Promise<string> {
+  // This is a CLI-only operation. Dynamic imports prevent Node filesystem
+  // modules from entering the Worker read-only import graph.
+  const fs = await import("node:fs/promises");
+  const path = await import("node:path");
   const detail = await getNewsDetail(ctx, newsId);
   const attachments = detail.attachments || [];
   if (attachments.length === 0) {

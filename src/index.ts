@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 
+import "dotenv/config";
+
 const args = process.argv.slice(2);
 const explicitServe = args[0] === "serve" || args[0] === "mcp";
 const legacyMcpMode = args.length === 0 && !process.stdin.isTTY;

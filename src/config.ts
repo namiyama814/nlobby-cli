@@ -1,9 +1,5 @@
-import { config } from "dotenv";
-
-config();
-
 function getPlatformUserAgent(): string {
-  const platform = process.platform;
+  const platform = typeof process === "undefined" ? "linux" : process.platform;
 
   switch (platform) {
     case "darwin":
@@ -18,11 +14,23 @@ function getPlatformUserAgent(): string {
 
 export const CONFIG = {
   nlobby: {
-    baseUrl: process.env.NLOBBY_BASE_URL || "https://nlobby.nnn.ed.jp",
+    baseUrl:
+      typeof process !== "undefined"
+        ? process.env.NLOBBY_BASE_URL || "https://nlobby.nnn.ed.jp"
+        : "https://nlobby.nnn.ed.jp",
   },
   mcp: {
-    serverName: process.env.MCP_SERVER_NAME || "nlobby-cli",
-    serverVersion: process.env.MCP_SERVER_VERSION || "1.6.0",
+    serverName:
+      typeof process !== "undefined"
+        ? process.env.MCP_SERVER_NAME || "nlobby-cli"
+        : "nlobby-cli",
+    serverVersion:
+      typeof process !== "undefined"
+        ? process.env.MCP_SERVER_VERSION || "1.6.0"
+        : "1.6.0",
   },
-  userAgent: process.env.USER_AGENT || getPlatformUserAgent(),
+  userAgent:
+    typeof process !== "undefined"
+      ? process.env.USER_AGENT || getPlatformUserAgent()
+      : getPlatformUserAgent(),
 } as const;

@@ -11,7 +11,8 @@ export class Logger {
 
   private constructor() {
     const isDebug =
-      process.env.NLOBBY_DEBUG === "true" || process.env.DEBUG === "true";
+      typeof process !== "undefined" &&
+      (process.env.NLOBBY_DEBUG === "true" || process.env.DEBUG === "true");
     this.logLevel = isDebug ? LogLevel.DEBUG : LogLevel.WARN;
   }
 
@@ -38,11 +39,27 @@ export class Logger {
     const levelName = LogLevel[level];
     const line =
       args.length > 0
-        ? `[${timestamp}] [${levelName}] ${message} ${args.map((a) => (typeof a === "object" ? JSON.stringify(a) : String(a))).join(" ")}`
+        ? `[${timestamp}] [${levelName}] ${message} ${args.map((a) => this.safeStringify(a)).join(" ")}`
         : `[${timestamp}] [${levelName}] ${message}`;
 
-    // Always write to stderr to avoid polluting stdout (MCP uses stdout for protocol)
-    process.stderr.write(line + "\n");
+    // stdout is reserved for the stdio MCP transport. Workers have no stderr.
+    if (typeof process !== "undefined" && process.stderr) {
+      process.stderr.write(line + "\n");
+    } else {
+      console.error(line);
+    }
+  }
+
+  private safeStringify(value: unknown): string {
+    if (typeof value !== "object" || value === null) return String(value);
+    const secretKeys = /cookie|authorization|token|secret|password/i;
+    try {
+      return JSON.stringify(value, (key, current) =>
+        secretKeys.test(key) ? "[REDACTED]" : current,
+      );
+    } catch {
+      return "[Unserializable value]";
+    }
   }
 
   debug(message: string, ...args: unknown[]): void {

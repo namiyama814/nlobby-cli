@@ -269,8 +269,6 @@ export class TRPCClient {
         logger.error(`[DEBUG] tRPC ${method} fetch error details:`, {
           status: error.response?.status,
           statusText: error.response?.statusText,
-          headers: error.response?.headers,
-          data: error.response?.data,
           url: error.config?.url,
           method: error.config?.method,
           timeout: error.config?.timeout,

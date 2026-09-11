@@ -1,6 +1,3 @@
-import fetch from "node-fetch";
-import type { RequestInit, Response } from "node-fetch";
-
 export interface HttpResponse<T = unknown> {
   data: T;
   status: number;
@@ -194,7 +191,7 @@ export class HttpClient {
       const init: RequestInit = {
         method: reqConfig.method,
         headers: fetchHeaders,
-        signal: controller.signal as RequestInit["signal"],
+        signal: controller.signal,
       };
 
       if (body !== undefined) {

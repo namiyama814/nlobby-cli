@@ -356,6 +356,88 @@ pnpm run format  # Format
 
 ---
 
+## Cloudflare Workers Remote MCP
+
+The repository also contains a protected, stateless Streamable HTTP MCP endpoint at
+`/mcp`. It is intended for one personal N Lobby account: all authorized MCP clients
+use the N Lobby session stored in Cloudflare Secrets. Existing CLI and stdio MCP
+commands continue to use their local authentication flow.
+
+### Setup
+
+1. Install dependencies and authenticate Wrangler:
+
+   ```bash
+   pnpm install
+   pnpm exec wrangler login
+   ```
+
+2. Create an OAuth KV namespace, then replace the placeholder ID in
+   `wrangler.jsonc`:
+
+   ```bash
+   pnpm exec wrangler kv namespace create OAUTH_KV
+   ```
+
+3. Create GitHub OAuth Apps for local development and production. Configure the
+   production callback as `https://<worker>.<account>.workers.dev/callback`.
+   The GitHub account allowed to use this MCP server is set below.
+
+4. Store all credentials as Cloudflare Secrets. Never put their values in
+   `wrangler.jsonc`, `.env` committed to Git, logs, or MCP tool arguments.
+
+   ```bash
+   pnpm exec wrangler secret put NLOBBY_SESSION_TOKEN
+   pnpm exec wrangler secret put MCP_ACCESS_TOKEN # optional legacy client secret; not consumed by OAuth
+   pnpm exec wrangler secret put NLOBBY_CSRF_TOKEN # optional
+   pnpm exec wrangler secret put NLOBBY_CALLBACK_URL # optional
+   pnpm exec wrangler secret put NLOBBY_COOKIE_HEADER # optional full-cookie override
+   pnpm exec wrangler secret put GITHUB_CLIENT_ID
+   pnpm exec wrangler secret put GITHUB_CLIENT_SECRET
+   pnpm exec wrangler secret put COOKIE_ENCRYPTION_KEY
+   pnpm exec wrangler secret put ALLOWED_GITHUB_LOGIN
+   ```
+
+   `NLOBBY_COOKIE_HEADER` takes precedence when set. Otherwise the Worker builds
+   the Cookie header from the session token and optional NextAuth cookies. The
+   session token is sent as both its NextAuth cookie and the existing API client's
+   Bearer token. Whether the token alone is sufficient for every N Lobby endpoint
+   must be verified with a real account.
+
+5. Run and deploy:
+
+   ```bash
+   pnpm worker:dev
+   pnpm worker:build
+   pnpm worker:deploy
+   ```
+
+   The health endpoint is `GET /health`; it only reports Worker availability. The
+   MCP endpoint is `https://<worker>.<account>.workers.dev/mcp`. Use an OAuth-aware
+   MCP client such as MCP Inspector to complete GitHub authorization and test tool
+   discovery before connecting ChatGPT.
+
+### ChatGPT and session renewal
+
+In ChatGPT Developer mode, create a custom MCP app using the deployed `/mcp` URL
+and select OAuth authentication. Complete the GitHub sign-in using the account in
+`ALLOWED_GITHUB_LOGIN`. ChatGPT availability and Developer mode permissions depend
+on the account/workspace plan.
+
+N Lobby's session commonly expires after about 14 days. When a tool reports
+`N Lobby session has expired. Please update the Cloudflare secret.`, log in through
+your normal browser, update `NLOBBY_SESSION_TOKEN` (and optional related cookies),
+then retry. Tokens and cookies are intentionally never returned by this service.
+
+The remote allowlist exposes read-only news, schedules, calendar data, courses,
+account information, navigation, and exam-day checks. The remote MCP deliberately excludes
+cookie tools, login tools, downloads, screenshots, one-time passwords, debugging,
+and every state-changing operation. Secure Portal schooling and designated-school
+pages remain CLI/stdio-only until their redirect-and-cookie flow has been verified
+without Puppeteer; they are not bundled into the Worker.
+
+---
+
 ## License
 
 This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.

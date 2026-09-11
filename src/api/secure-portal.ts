@@ -1,5 +1,4 @@
 import type { Browser, CookieParam } from "puppeteer";
-import { launchPuppeteerBrowser } from "../auth/puppeteer-launch.js";
 import { CONFIG } from "../config.js";
 import { logger } from "../logger.js";
 import type { ApiContext } from "./context.js";
@@ -68,6 +67,7 @@ export function buildPuppeteerCookies(
 }
 
 export async function launchHeadlessBrowser(): Promise<Browser> {
+  const { launchPuppeteerBrowser } = await import("../auth/puppeteer-launch.js");
   return launchPuppeteerBrowser({
     headless: true,
     args: ["--no-sandbox", "--disable-setuid-sandbox"],
@@ -121,6 +121,9 @@ export async function fetchSecurePortalPage(options: {
   cookies: CookieParam[];
   waitForSelector?: string;
 }): Promise<{ html: string; mainHtml: string; finalUrl: string }> {
+  if (typeof process === "undefined") {
+    return fetchSecurePortalPageHttp(options);
+  }
   const waitForSelector = options.waitForSelector ?? "#main";
 
   logger.info("[SECURE_PORTAL] Launching headless browser for page fetch");
@@ -157,6 +160,48 @@ export async function fetchSecurePortalPage(options: {
   } finally {
     await browser.close();
   }
+}
+
+/** Worker-safe secure portal fetch. It follows the existing callback flow and
+ * carries Set-Cookie values across redirects without requiring a browser. */
+async function fetchSecurePortalPageHttp(options: {
+  startUrl: string;
+  cookies: CookieParam[];
+  waitForSelector?: string;
+}): Promise<{ html: string; mainHtml: string; finalUrl: string }> {
+  const jar = new Map(options.cookies.map((cookie) => [cookie.name, cookie.value]));
+  let url = options.startUrl;
+  for (let redirects = 0; redirects < 8; redirects++) {
+    const response = await fetch(url, {
+      redirect: "manual",
+      headers: {
+        Cookie: Array.from(jar, ([name, value]) => `${name}=${value}`).join("; "),
+        "User-Agent": CONFIG.userAgent,
+        Accept: "text/html,application/xhtml+xml",
+      },
+    });
+    const getSetCookie = (response.headers as Headers & { getSetCookie?: () => string[] }).getSetCookie;
+    const values = getSetCookie ? getSetCookie.call(response.headers) : [response.headers.get("set-cookie") ?? ""];
+    for (const value of values) {
+      const pair = value.split(";", 1)[0];
+      const equals = pair.indexOf("=");
+      if (equals > 0) jar.set(pair.slice(0, equals), pair.slice(equals + 1));
+    }
+    if (response.status >= 300 && response.status < 400) {
+      const location = response.headers.get("location");
+      if (!location) throw new Error("Secure Portal redirect did not include a location.");
+      url = new URL(location, url).href;
+      continue;
+    }
+    if (!response.ok) throw new Error(`Secure Portal request failed (${response.status}).`);
+    const html = await response.text();
+    if (/\b(login|sign-in|ログイン)\b/i.test(html) && !/id=["']main["']/i.test(html)) {
+      throw new Error("Authentication expired. Please re-authenticate.");
+    }
+    const match = html.match(/<[^>]+id=["']main["'][^>]*>([\s\S]*?)<\/[^>]+>/i);
+    return { html, mainHtml: match?.[1] ?? html, finalUrl: url };
+  }
+  throw new Error("Secure Portal redirect limit exceeded.");
 }
 
 export async function captureSecurePortalElement(options: {
