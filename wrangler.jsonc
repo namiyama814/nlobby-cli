@@ -1,8 +1,9 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "nlobby-remote-mcp",
+  "account_id": "2a1ab8b6a9b36f7f0c4292dce044e0c4",
   "main": "src/worker/index.ts",
   "compatibility_date": "2026-09-11",
   "compatibility_flags": ["global_fetch_strictly_public"],
-  "kv_namespaces": [{ "binding": "OAUTH_KV", "id": "REPLACE_WITH_YOUR_KV_NAMESPACE_ID" }]
+  "kv_namespaces": [{ "binding": "OAUTH_KV", "id": "81ebfe36c1c14266a79de706774588ef" }]
 }
